@@ -202,7 +202,7 @@
        /* Mobile styles */
        @media (max-width: 768px) {
             .main-container {
-                scroll-snap-type: none;
+                scroll-snap-type: x proximity;
                 touch-action: pan-x pan-y;
             }
 
@@ -210,7 +210,7 @@
                 min-width: 80vw;
                 width: 80vw;
                 padding: 30px 15px 30px 30px;
-                scroll-snap-align: none;
+                scroll-snap-align: start;
                 scroll-snap-stop: normal;
             }
 
@@ -247,7 +247,7 @@
                 min-width: 80vw;
                 width: 80vw;
                 padding: 20px 10px 20px 20px;
-                scroll-snap-align: none;
+                scroll-snap-align: start;
                 scroll-snap-stop: normal;
             }
 
@@ -1168,6 +1168,8 @@ mainContainer.addEventListener('touchmove', (e) => {
                     }
                 } else if (deltaY > deltaX * 1.5 && deltaY > 30) {
                     isVerticalGesture = true;
+                    // Temporarily disable scroll-snap during vertical gestures
+                    mainContainer.style.scrollSnapType = 'none';
                     if (DEBUG_TOUCH) {
                         console.log('VERTICAL GESTURE DETECTED:', {
                             deltaX, deltaY, ratio: deltaY / deltaX
@@ -1222,6 +1224,9 @@ mainContainer.addEventListener('touchend', (e) => {
         return;
     }
     
+    // For deliberate horizontal swipes, let CSS scroll-snap handle the snapping
+    // Only use JavaScript for quick swipes that need programmatic navigation
+    
     // Only handle horizontal swipes if it was clearly a horizontal gesture
     if (window.innerWidth <= 768 && isHorizontalGesture && !isVerticalGesture) {
         // Require quick, significant horizontal movement
@@ -1268,9 +1273,16 @@ mainContainer.addEventListener('touchend', (e) => {
         });
     }
     
-    // Reset gesture tracking
+    // Reset gesture tracking and restore scroll-snap
     isHorizontalGesture = false;
     isVerticalGesture = false;
+    
+    // Restore scroll-snap after a short delay
+    setTimeout(() => {
+        if (window.innerWidth <= 768) {
+            mainContainer.style.scrollSnapType = 'x proximity';
+        }
+    }, 100);
 }, { passive: true });
 
 function updateNavigationArrows() {
