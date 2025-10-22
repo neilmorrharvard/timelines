@@ -387,6 +387,25 @@
                 display: flex;
             }
         }
+
+        /* Debug indicator */
+        .debug-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .debug-indicator.show {
+            display: block;
+        }
     </style>
 </head>
 
@@ -1071,6 +1090,12 @@
         </div>
     </div>
 
+    <!-- Debug Indicator -->
+    <div class="debug-indicator" id="debugIndicator">
+        <div>Touch Debug</div>
+        <div id="debugInfo">Waiting for touch...</div>
+    </div>
+
 
 
 <script>
@@ -1079,6 +1104,8 @@ const navLeft = document.getElementById('navLeft');
 const navRight = document.getElementById('navRight');
 const scrollbarThumb = document.getElementById('scrollbarThumb');
 const scrollbarTrack = document.getElementById('scrollbarTrack');
+const debugIndicator = document.getElementById('debugIndicator');
+const debugInfo = document.getElementById('debugInfo');
 let isDragging = false;
 let dragStartX = 0;
 let scrollStartLeft = 0;
@@ -1092,12 +1119,31 @@ let touchMoveY = 0;
 let isHorizontalGesture = false;
 let isVerticalGesture = false;
 
+// Debug mode - set to true to see console logs
+const DEBUG_TOUCH = true;
+
+// Show debug indicator on mobile
+if (window.innerWidth <= 768) {
+    debugIndicator.classList.add('show');
+}
+
 mainContainer.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
     touchStartTime = Date.now();
     isHorizontalGesture = false;
     isVerticalGesture = false;
+    
+    if (DEBUG_TOUCH) {
+        console.log('Touch Start:', {
+            x: touchStartX,
+            y: touchStartY,
+            time: touchStartTime,
+            userAgent: navigator.userAgent,
+            isMobile: window.innerWidth <= 768
+        });
+        debugInfo.textContent = `Start: ${touchStartX.toFixed(0)}, ${touchStartY.toFixed(0)}`;
+    }
 }, { passive: true });
 
 mainContainer.addEventListener('touchmove', (e) => {
@@ -1114,8 +1160,20 @@ mainContainer.addEventListener('touchmove', (e) => {
                 // Require much more horizontal movement than vertical for horizontal gesture
                 if (deltaX > deltaY * 2.5 && deltaX > 50) {
                     isHorizontalGesture = true;
+                    if (DEBUG_TOUCH) {
+                        console.log('HORIZONTAL GESTURE DETECTED:', {
+                            deltaX, deltaY, ratio: deltaX / deltaY
+                        });
+                        debugInfo.textContent = `HORIZONTAL: ΔX=${deltaX.toFixed(0)}, ΔY=${deltaY.toFixed(0)}`;
+                    }
                 } else if (deltaY > deltaX * 1.5 && deltaY > 30) {
                     isVerticalGesture = true;
+                    if (DEBUG_TOUCH) {
+                        console.log('VERTICAL GESTURE DETECTED:', {
+                            deltaX, deltaY, ratio: deltaY / deltaX
+                        });
+                        debugInfo.textContent = `VERTICAL: ΔX=${deltaX.toFixed(0)}, ΔY=${deltaY.toFixed(0)}`;
+                    }
                 }
             }
         }
@@ -1123,15 +1181,32 @@ mainContainer.addEventListener('touchmove', (e) => {
 }, { passive: true });
 
 mainContainer.addEventListener('touchend', (e) => {
+    const touchEndTime = Date.now();
+    const touchDuration = touchEndTime - touchStartTime;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+    
+    if (DEBUG_TOUCH) {
+        console.log('Touch End:', {
+            deltaX, deltaY, duration: touchDuration,
+            isHorizontal: isHorizontalGesture,
+            isVertical: isVerticalGesture,
+            windowWidth: window.innerWidth,
+            isMobile: window.innerWidth <= 768
+        });
+    }
+    
     // Only handle horizontal swipes if it was clearly a horizontal gesture
     if (window.innerWidth <= 768 && isHorizontalGesture && !isVerticalGesture) {
-        const touchEndTime = Date.now();
-        const touchDuration = touchEndTime - touchStartTime;
-        const touchEndX = e.changedTouches[0].clientX;
-        const deltaX = touchEndX - touchStartX;
-        
         // Require quick, significant horizontal movement
         if (touchDuration < 400 && Math.abs(deltaX) > 80) {
+            if (DEBUG_TOUCH) {
+                console.log('SWIPE TRIGGERED - Moving to next/prev column');
+                debugInfo.textContent = `SWIPE TRIGGERED! ΔX=${deltaX.toFixed(0)}`;
+            }
+            
             const columns = document.querySelectorAll('.decade-column');
             const columnWidth = columns[0].offsetWidth;
             const currentScroll = mainContainer.scrollLeft;
@@ -1152,7 +1227,21 @@ mainContainer.addEventListener('touchend', (e) => {
                 left: targetScroll,
                 behavior: 'smooth'
             });
+        } else if (DEBUG_TOUCH) {
+            console.log('Swipe conditions not met:', {
+                duration: touchDuration,
+                deltaX: Math.abs(deltaX),
+                requiredDuration: 400,
+                requiredDeltaX: 80
+            });
         }
+    } else if (DEBUG_TOUCH && window.innerWidth <= 768) {
+        console.log('No swipe triggered:', {
+            isHorizontal: isHorizontalGesture,
+            isVertical: isVerticalGesture,
+            reason: !isHorizontalGesture ? 'Not horizontal gesture' : 
+                   isVerticalGesture ? 'Vertical gesture detected' : 'Other'
+        });
     }
     
     // Reset gesture tracking
