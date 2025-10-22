@@ -278,6 +278,8 @@
         @media (min-width: 769px) {
             .main-container {
                 scroll-snap-type: none;
+                scroll-behavior: auto;
+                scroll-snap-duration: 0s;
             }
             
             body {
@@ -385,6 +387,7 @@
             border-radius: 4px;
             cursor: grab;
             transition: background 0.2s ease;
+            will-change: left, width;
         }
 
         .scrollbar-thumb:hover {
@@ -393,6 +396,10 @@
 
         .scrollbar-thumb:active {
             cursor: grabbing;
+            background: #d4d4d4;
+        }
+
+        .scrollbar-track:active .scrollbar-thumb {
             background: #d4d4d4;
         }
 
@@ -1160,6 +1167,8 @@ function scrollToPrevDecade() {
 }
 
 function updateScrollbar() {
+    if (isDragging) return; // Don't update scrollbar during drag to prevent conflicts
+    
     const scrollPercentage = mainContainer.scrollLeft / (mainContainer.scrollWidth - mainContainer.clientWidth);
     const thumbWidth = (mainContainer.clientWidth / mainContainer.scrollWidth) * 100;
     const thumbPosition = scrollPercentage * (100 - thumbWidth);
@@ -1173,10 +1182,25 @@ function handleScrollbarDrag(e) {
     
     const dragDistance = e.clientX - dragStartX;
     const trackRect = scrollbarTrack.getBoundingClientRect();
-    const dragPercentage = dragDistance / trackRect.width;
-    const scrollDistance = dragPercentage * (mainContainer.scrollWidth - mainContainer.clientWidth);
+    const trackWidth = trackRect.width;
+    const maxScroll = mainContainer.scrollWidth - mainContainer.clientWidth;
     
-    mainContainer.scrollLeft = scrollStartLeft + scrollDistance;
+    // Calculate the percentage of the track that the drag distance represents
+    const dragPercentage = dragDistance / trackWidth;
+    const scrollDistance = dragPercentage * maxScroll;
+    const newScrollLeft = scrollStartLeft + scrollDistance;
+    
+    // Clamp to valid scroll range
+    const clampedScrollLeft = Math.max(0, Math.min(maxScroll, newScrollLeft));
+    mainContainer.scrollLeft = clampedScrollLeft;
+    
+    // Manually update the thumb position during drag
+    const scrollPercentage = clampedScrollLeft / maxScroll;
+    const thumbWidth = (mainContainer.clientWidth / mainContainer.scrollWidth) * 100;
+    const thumbPosition = scrollPercentage * (100 - thumbWidth);
+    
+    scrollbarThumb.style.width = thumbWidth + '%';
+    scrollbarThumb.style.left = thumbPosition + '%';
 }
 
 function scrollToDecade(decade) {
@@ -1222,23 +1246,35 @@ scrollbarThumb.addEventListener('mousedown', (e) => {
     isDragging = true;
     dragStartX = e.clientX;
     scrollStartLeft = mainContainer.scrollLeft;
+    
     e.preventDefault();
+    e.stopPropagation();
 });
 
-document.addEventListener('mousemove', handleScrollbarDrag);
+document.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleScrollbarDrag(e);
+    }
+});
 
-document.addEventListener('mouseup', () => {
-    isDragging = false;
+document.addEventListener('mouseup', (e) => {
+    if (isDragging) {
+        isDragging = false;
+        e.preventDefault();
+    }
 });
 
 scrollbarTrack.addEventListener('click', (e) => {
-    if (e.target === scrollbarTrack) {
+    if (e.target === scrollbarTrack && !isDragging) {
         const trackRect = scrollbarTrack.getBoundingClientRect();
         const clickPosition = e.clientX - trackRect.left;
-        const clickPercentage = clickPosition / trackRect.width;
+        const clickPercentage = Math.max(0, Math.min(1, clickPosition / trackRect.width));
         const scrollPosition = clickPercentage * (mainContainer.scrollWidth - mainContainer.clientWidth);
         
-        mainContainer.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+        // Use immediate scroll for better responsiveness
+        mainContainer.scrollLeft = scrollPosition;
     }
 });
 
