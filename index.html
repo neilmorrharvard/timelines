@@ -1083,28 +1083,55 @@ let isDragging = false;
 let dragStartX = 0;
 let scrollStartLeft = 0;
 
-// Simplified touch handling for mobile - let CSS scroll-snap do the work
-// Only add minimal JavaScript enhancement for better UX
+// Touch handling for mobile with strict horizontal swipe detection
 let touchStartX = 0;
 let touchStartY = 0;
 let touchStartTime = 0;
+let touchMoveX = 0;
+let touchMoveY = 0;
+let isHorizontalGesture = false;
+let isVerticalGesture = false;
 
 mainContainer.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
     touchStartTime = Date.now();
+    isHorizontalGesture = false;
+    isVerticalGesture = false;
+}, { passive: true });
+
+mainContainer.addEventListener('touchmove', (e) => {
+    if (window.innerWidth <= 768) {
+        touchMoveX = e.touches[0].clientX;
+        touchMoveY = e.touches[0].clientY;
+        
+        const deltaX = Math.abs(touchMoveX - touchStartX);
+        const deltaY = Math.abs(touchMoveY - touchStartY);
+        
+        // Only determine gesture direction after significant movement
+        if (deltaX > 20 || deltaY > 20) {
+            if (!isHorizontalGesture && !isVerticalGesture) {
+                // Require much more horizontal movement than vertical for horizontal gesture
+                if (deltaX > deltaY * 2.5 && deltaX > 50) {
+                    isHorizontalGesture = true;
+                } else if (deltaY > deltaX * 1.5 && deltaY > 30) {
+                    isVerticalGesture = true;
+                }
+            }
+        }
+    }
 }, { passive: true });
 
 mainContainer.addEventListener('touchend', (e) => {
-    // Only enhance quick swipes for better navigation
-    if (window.innerWidth <= 768) {
+    // Only handle horizontal swipes if it was clearly a horizontal gesture
+    if (window.innerWidth <= 768 && isHorizontalGesture && !isVerticalGesture) {
         const touchEndTime = Date.now();
         const touchDuration = touchEndTime - touchStartTime;
         const touchEndX = e.changedTouches[0].clientX;
         const deltaX = touchEndX - touchStartX;
         
-        // Only handle quick swipes (fast, short duration)
-        if (touchDuration < 300 && Math.abs(deltaX) > 30) {
+        // Require quick, significant horizontal movement
+        if (touchDuration < 400 && Math.abs(deltaX) > 80) {
             const columns = document.querySelectorAll('.decade-column');
             const columnWidth = columns[0].offsetWidth;
             const currentScroll = mainContainer.scrollLeft;
@@ -1127,6 +1154,10 @@ mainContainer.addEventListener('touchend', (e) => {
             });
         }
     }
+    
+    // Reset gesture tracking
+    isHorizontalGesture = false;
+    isVerticalGesture = false;
 }, { passive: true });
 
 function updateNavigationArrows() {
