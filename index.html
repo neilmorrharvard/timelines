@@ -202,7 +202,7 @@
        /* Mobile styles */
        @media (max-width: 768px) {
             .main-container {
-                scroll-snap-type: x mandatory;
+                scroll-snap-type: none;
                 touch-action: pan-x pan-y;
             }
 
@@ -210,8 +210,8 @@
                 min-width: 80vw;
                 width: 80vw;
                 padding: 30px 15px 30px 30px;
-                scroll-snap-align: start;
-                scroll-snap-stop: always;
+                scroll-snap-align: none;
+                scroll-snap-stop: normal;
             }
 
             .decade-title {
@@ -247,8 +247,8 @@
                 min-width: 80vw;
                 width: 80vw;
                 padding: 20px 10px 20px 20px;
-                scroll-snap-align: start;
-                scroll-snap-stop: always;
+                scroll-snap-align: none;
+                scroll-snap-stop: normal;
             }
 
             .decade-title {
@@ -1206,6 +1206,17 @@ mainContainer.addEventListener('touchend', (e) => {
             debugInfo.textContent = `BLOCKED: Vertical gesture detected`;
         }
         // Reset gesture tracking and return early
+        isHorizontalGesture = false;
+        isVerticalGesture = false;
+        return;
+    }
+    
+    // ADDITIONAL CHECK: If there's significant vertical movement, block horizontal navigation
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 20) {
+        if (DEBUG_TOUCH) {
+            console.log('BLOCKED: More vertical than horizontal movement detected');
+            debugInfo.textContent = `BLOCKED: Vertical movement > horizontal`;
+        }
         isHorizontalGesture = false;
         isVerticalGesture = false;
         return;
