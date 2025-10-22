@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -38,6 +39,7 @@
             right: 0;
             bottom: 0;
             overscroll-behavior-x: contain;
+            scroll-behavior: smooth;
         }
 
         .main-container::before {
@@ -200,14 +202,16 @@
        /* Mobile styles */
        @media (max-width: 768px) {
             .main-container {
-                scroll-snap-type: none;
-                touch-action: pan-y;
+                scroll-snap-type: x mandatory;
+                touch-action: pan-x pan-y;
             }
 
             .decade-column {
                 min-width: 80vw;
                 width: 80vw;
                 padding: 30px 15px 30px 30px;
+                scroll-snap-align: start;
+                scroll-snap-stop: always;
             }
 
             .decade-title {
@@ -243,6 +247,7 @@
                 min-width: 80vw;
                 width: 80vw;
                 padding: 20px 10px 20px 20px;
+                scroll-snap-align: start;
                 scroll-snap-stop: always;
             }
 
@@ -1078,75 +1083,41 @@ let isDragging = false;
 let dragStartX = 0;
 let scrollStartLeft = 0;
 
-// Touch handling for mobile
+// Simplified touch handling for mobile - let CSS scroll-snap do the work
+// Only add minimal JavaScript enhancement for better UX
 let touchStartX = 0;
 let touchStartY = 0;
-let lastScrollLeft = 0;
-let isHorizontalSwipe = false;
-let isVerticalScroll = false;
 let touchStartTime = 0;
 
 mainContainer.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
     touchStartY = e.touches[0].clientY;
-    lastScrollLeft = mainContainer.scrollLeft;
     touchStartTime = Date.now();
-    isHorizontalSwipe = false;
-    isVerticalScroll = false;
-}, { passive: true });
-
-mainContainer.addEventListener('touchmove', (e) => {
-    const touchX = e.touches[0].clientX;
-    const touchY = e.touches[0].clientY;
-    const deltaX = Math.abs(touchX - touchStartX);
-    const deltaY = Math.abs(touchY - touchStartY);
-    
-    // Determine scroll direction on first significant movement
-    // Reduced threshold and angle requirement for easier horizontal detection
-    if (!isHorizontalSwipe && !isVerticalScroll && (deltaX > 5 || deltaY > 5)) {
-        if (deltaX > deltaY * 1.2) {
-            isHorizontalSwipe = true;
-            mainContainer.style.overflowY = 'hidden';
-        } else {
-            isVerticalScroll = true;
-            mainContainer.style.overflowX = 'hidden';
-        }
-    }
 }, { passive: true });
 
 mainContainer.addEventListener('touchend', (e) => {
-    const touchEndTime = Date.now();
-    const touchDuration = touchEndTime - touchStartTime;
-    const touchEndX = e.changedTouches[0].clientX;
-    const deltaX = touchEndX - touchStartX;
-    
-    // Re-enable both scroll directions
-    setTimeout(() => {
-        mainContainer.style.overflowX = 'auto';
-        mainContainer.style.overflowY = 'auto';
+    // Only enhance quick swipes for better navigation
+    if (window.innerWidth <= 768) {
+        const touchEndTime = Date.now();
+        const touchDuration = touchEndTime - touchStartTime;
+        const touchEndX = e.changedTouches[0].clientX;
+        const deltaX = touchEndX - touchStartX;
         
-        // Snap to nearest column if horizontal swipe detected
-        if (isHorizontalSwipe && window.innerWidth <= 768) {
+        // Only handle quick swipes (fast, short duration)
+        if (touchDuration < 300 && Math.abs(deltaX) > 30) {
             const columns = document.querySelectorAll('.decade-column');
             const columnWidth = columns[0].offsetWidth;
             const currentScroll = mainContainer.scrollLeft;
-            
-            // Check if it's a quick swipe (velocity-based navigation)
-            const isQuickSwipe = touchDuration < 300 && Math.abs(deltaX) > 50;
+            const currentIndex = Math.round(currentScroll / columnWidth);
             
             let targetIndex;
-            if (isQuickSwipe) {
-                // Swipe left = next column, swipe right = previous column
-                const currentIndex = Math.round(currentScroll / columnWidth);
-                targetIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
+            if (deltaX < 0) {
+                // Swipe left = next column
+                targetIndex = Math.min(currentIndex + 1, columns.length - 1);
             } else {
-                // Snap to nearest column
-                targetIndex = Math.round(currentScroll / columnWidth);
+                // Swipe right = previous column
+                targetIndex = Math.max(currentIndex - 1, 0);
             }
-            
-            // Clamp to valid range
-            const maxIndex = columns.length - 1;
-            targetIndex = Math.max(0, Math.min(targetIndex, maxIndex));
             
             const targetScroll = targetIndex * columnWidth;
             
@@ -1155,11 +1126,8 @@ mainContainer.addEventListener('touchend', (e) => {
                 behavior: 'smooth'
             });
         }
-    }, 50);
-    
-    isHorizontalSwipe = false;
-    isVerticalScroll = false;
-});
+    }
+}, { passive: true });
 
 function updateNavigationArrows() {
     const scrollLeft = mainContainer.scrollLeft;
