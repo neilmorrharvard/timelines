@@ -37,6 +37,7 @@
             left: 0;
             right: 0;
             bottom: 0;
+            overscroll-behavior-x: contain;
         }
 
         .main-container::before {
@@ -195,10 +196,12 @@
             color: white;
         }
 
-        /* Mobile styles */
-        @media (max-width: 768px) {
+
+       /* Mobile styles */
+       @media (max-width: 768px) {
             .main-container {
-                scroll-snap-type: x mandatory;
+                scroll-snap-type: none;
+                touch-action: pan-y;
             }
 
             .decade-column {
@@ -1065,119 +1068,177 @@
 
 
     <script>
-const mainContainer = document.querySelector('.main-container');
-const navLeft = document.getElementById('navLeft');
-const navRight = document.getElementById('navRight');
-const scrollbarThumb = document.getElementById('scrollbarThumb');
-const scrollbarTrack = document.getElementById('scrollbarTrack');
-let isDragging = false;
-let dragStartX = 0;
-let scrollStartLeft = 0;
-
-function updateNavigationArrows() {
-    const scrollLeft = mainContainer.scrollLeft;
-    const maxScroll = mainContainer.scrollWidth - mainContainer.clientWidth;
-    
-    if (scrollLeft > 50) {
-        navLeft.classList.add('show');
-    } else {
-        navLeft.classList.remove('show');
-    }
-    
-    if (scrollLeft < maxScroll - 50) {
-        navRight.classList.add('show');
-    } else {
-        navRight.classList.remove('show');
-    }
-}
-
-function scrollToNextDecade() {
-    mainContainer.scrollBy({ left: 400, behavior: 'smooth' });
-}
-
-function scrollToPrevDecade() {
-    mainContainer.scrollBy({ left: -400, behavior: 'smooth' });
-}
-
-function updateScrollbar() {
-    const scrollPercentage = mainContainer.scrollLeft / (mainContainer.scrollWidth - mainContainer.clientWidth);
-    const thumbWidth = (mainContainer.clientWidth / mainContainer.scrollWidth) * 100;
-    const thumbPosition = scrollPercentage * (100 - thumbWidth);
-    
-    scrollbarThumb.style.width = thumbWidth + '%';
-    scrollbarThumb.style.left = thumbPosition + '%';
-}
-
-function handleScrollbarDrag(e) {
-    if (!isDragging) return;
-    
-    const dragDistance = e.clientX - dragStartX;
-    const trackRect = scrollbarTrack.getBoundingClientRect();
-    const dragPercentage = dragDistance / trackRect.width;
-    const scrollDistance = dragPercentage * (mainContainer.scrollWidth - mainContainer.clientWidth);
-    
-    mainContainer.scrollLeft = scrollStartLeft + scrollDistance;
-}
-
-function scrollToDecade(decade) {
-    const targetColumn = document.querySelector(`[data-decade="${decade}"]`);
-    if (targetColumn) {
-        const offsetLeft = targetColumn.offsetLeft;
-        mainContainer.scrollTo({ left: offsetLeft, behavior: 'smooth' });
-    }
-}
-
-mainContainer.addEventListener('scroll', function() {
-    if (this.scrollTop > 100) {
-        this.classList.add('scrolled');
-    } else {
-        this.classList.remove('scrolled');
-    }
-    
-    updateNavigationArrows();
-    updateScrollbar();
-});
-
-// Scrollbar event listeners
-scrollbarThumb.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    dragStartX = e.clientX;
-    scrollStartLeft = mainContainer.scrollLeft;
-    e.preventDefault();
-});
-
-document.addEventListener('mousemove', handleScrollbarDrag);
-
-document.addEventListener('mouseup', () => {
-    isDragging = false;
-});
-
-scrollbarTrack.addEventListener('click', (e) => {
-    if (e.target === scrollbarTrack) {
-        const trackRect = scrollbarTrack.getBoundingClientRect();
-        const clickPosition = e.clientX - trackRect.left;
-        const clickPercentage = clickPosition / trackRect.width;
-        const scrollPosition = clickPercentage * (mainContainer.scrollWidth - mainContainer.clientWidth);
+        const mainContainer = document.querySelector('.main-container');
+        const navLeft = document.getElementById('navLeft');
+        const navRight = document.getElementById('navRight');
+        const scrollbarThumb = document.getElementById('scrollbarThumb');
+        const scrollbarTrack = document.getElementById('scrollbarTrack');
+        let isDragging = false;
+        let dragStartX = 0;
+        let scrollStartLeft = 0;
         
-        mainContainer.scrollTo({ left: scrollPosition, behavior: 'smooth' });
-    }
-});
-
-document.querySelectorAll('.decade-title').forEach(title => {
-    title.addEventListener('click', function() {
-        const decadeColumn = this.closest('.decade-column');
-        const decade = decadeColumn.getAttribute('data-decade');
-        scrollToDecade(decade);
-    });
-});
-
-updateNavigationArrows();
-updateScrollbar();
-window.addEventListener('resize', () => {
-    updateNavigationArrows();
-    updateScrollbar();
-});
-    </script>
+        // Touch handling for mobile
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let lastScrollLeft = 0;
+        let isHorizontalSwipe = false;
+        let isVerticalScroll = false;
+        
+        mainContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            lastScrollLeft = mainContainer.scrollLeft;
+            isHorizontalSwipe = false;
+            isVerticalScroll = false;
+        }, { passive: true });
+        
+        mainContainer.addEventListener('touchmove', (e) => {
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            const deltaX = Math.abs(touchX - touchStartX);
+            const deltaY = Math.abs(touchY - touchStartY);
+            
+            // Determine scroll direction on first significant movement
+            if (!isHorizontalSwipe && !isVerticalScroll && (deltaX > 10 || deltaY > 10)) {
+                if (deltaX > deltaY * 1.5) {
+                    isHorizontalSwipe = true;
+                    mainContainer.style.overflowY = 'hidden';
+                } else {
+                    isVerticalScroll = true;
+                    mainContainer.style.overflowX = 'hidden';
+                }
+            }
+        }, { passive: true });
+        
+        mainContainer.addEventListener('touchend', () => {
+            // Re-enable both scroll directions
+            setTimeout(() => {
+                mainContainer.style.overflowX = 'auto';
+                mainContainer.style.overflowY = 'auto';
+                
+                // Snap to nearest column if horizontal swipe detected
+                if (isHorizontalSwipe && window.innerWidth <= 768) {
+                    const columns = document.querySelectorAll('.decade-column');
+                    const columnWidth = columns[0].offsetWidth;
+                    const currentScroll = mainContainer.scrollLeft;
+                    const targetIndex = Math.round(currentScroll / columnWidth);
+                    const targetScroll = targetIndex * columnWidth;
+                    
+                    mainContainer.scrollTo({
+                        left: targetScroll,
+                        behavior: 'smooth'
+                    });
+                }
+            }, 50);
+            
+            isHorizontalSwipe = false;
+            isVerticalScroll = false;
+        });
+        
+        function updateNavigationArrows() {
+            const scrollLeft = mainContainer.scrollLeft;
+            const maxScroll = mainContainer.scrollWidth - mainContainer.clientWidth;
+            
+            if (scrollLeft > 50) {
+                navLeft.classList.add('show');
+            } else {
+                navLeft.classList.remove('show');
+            }
+            
+            if (scrollLeft < maxScroll - 50) {
+                navRight.classList.add('show');
+            } else {
+                navRight.classList.remove('show');
+            }
+        }
+        
+        function scrollToNextDecade() {
+            mainContainer.scrollBy({ left: 400, behavior: 'smooth' });
+        }
+        
+        function scrollToPrevDecade() {
+            mainContainer.scrollBy({ left: -400, behavior: 'smooth' });
+        }
+        
+        function updateScrollbar() {
+            const scrollPercentage = mainContainer.scrollLeft / (mainContainer.scrollWidth - mainContainer.clientWidth);
+            const thumbWidth = (mainContainer.clientWidth / mainContainer.scrollWidth) * 100;
+            const thumbPosition = scrollPercentage * (100 - thumbWidth);
+            
+            scrollbarThumb.style.width = thumbWidth + '%';
+            scrollbarThumb.style.left = thumbPosition + '%';
+        }
+        
+        function handleScrollbarDrag(e) {
+            if (!isDragging) return;
+            
+            const dragDistance = e.clientX - dragStartX;
+            const trackRect = scrollbarTrack.getBoundingClientRect();
+            const dragPercentage = dragDistance / trackRect.width;
+            const scrollDistance = dragPercentage * (mainContainer.scrollWidth - mainContainer.clientWidth);
+            
+            mainContainer.scrollLeft = scrollStartLeft + scrollDistance;
+        }
+        
+        function scrollToDecade(decade) {
+            const targetColumn = document.querySelector(`[data-decade="${decade}"]`);
+            if (targetColumn) {
+                const offsetLeft = targetColumn.offsetLeft;
+                mainContainer.scrollTo({ left: offsetLeft, behavior: 'smooth' });
+            }
+        }
+        
+        mainContainer.addEventListener('scroll', function() {
+            if (this.scrollTop > 100) {
+                this.classList.add('scrolled');
+            } else {
+                this.classList.remove('scrolled');
+            }
+            
+            updateNavigationArrows();
+            updateScrollbar();
+        });
+        
+        // Scrollbar event listeners
+        scrollbarThumb.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStartX = e.clientX;
+            scrollStartLeft = mainContainer.scrollLeft;
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', handleScrollbarDrag);
+        
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+        
+        scrollbarTrack.addEventListener('click', (e) => {
+            if (e.target === scrollbarTrack) {
+                const trackRect = scrollbarTrack.getBoundingClientRect();
+                const clickPosition = e.clientX - trackRect.left;
+                const clickPercentage = clickPosition / trackRect.width;
+                const scrollPosition = clickPercentage * (mainContainer.scrollWidth - mainContainer.clientWidth);
+                
+                mainContainer.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+            }
+        });
+        
+        document.querySelectorAll('.decade-title').forEach(title => {
+            title.addEventListener('click', function() {
+                const decadeColumn = this.closest('.decade-column');
+                const decade = decadeColumn.getAttribute('data-decade');
+                scrollToDecade(decade);
+            });
+        });
+        
+        updateNavigationArrows();
+        updateScrollbar();
+        window.addEventListener('resize', () => {
+            updateNavigationArrows();
+            updateScrollbar();
+        });
+            </script>
 </body>
 
-</html> 
+</html>
