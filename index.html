@@ -1196,6 +1196,19 @@ mainContainer.addEventListener('touchend', (e) => {
             windowWidth: window.innerWidth,
             isMobile: window.innerWidth <= 768
         });
+        debugInfo.textContent = `End: H=${isHorizontalGesture}, V=${isVerticalGesture}, ΔX=${deltaX.toFixed(0)}, ΔY=${deltaY.toFixed(0)}`;
+    }
+    
+    // EXPLICIT CHECK: Never allow horizontal navigation if vertical gesture was detected
+    if (isVerticalGesture) {
+        if (DEBUG_TOUCH) {
+            console.log('BLOCKED: Vertical gesture detected, preventing horizontal navigation');
+            debugInfo.textContent = `BLOCKED: Vertical gesture detected`;
+        }
+        // Reset gesture tracking and return early
+        isHorizontalGesture = false;
+        isVerticalGesture = false;
+        return;
     }
     
     // Only handle horizontal swipes if it was clearly a horizontal gesture
