@@ -205,8 +205,8 @@
             }
 
             .decade-column {
-                min-width: 80vw;
-                width: 80vw;
+                min-width: 75vw;
+                width: 75vw;
                 padding: 30px 15px 30px 30px;
             }
 
@@ -245,8 +245,8 @@
 
         @media (max-width: 480px) {
             .decade-column {
-                min-width: 80vw;
-                width: 80vw;
+                min-width: 75vw;
+                width: 75vw;
                 padding: 20px 10px 20px 20px;
                 scroll-snap-stop: always;
             }
@@ -1207,9 +1207,11 @@ const updateStickyHeaders = () => {
         document.querySelectorAll('.decade-header').forEach(header => {
             const rect = header.getBoundingClientRect();
             if (rect.top <= 0) {
-                header.style.background = 'linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-start) 100%)';
+                // Remove background styling - let CSS handle it
+                header.style.background = '';
             } else {
-                header.style.background = 'linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-start) 30%, transparent 100%)';
+                // Remove background styling - let CSS handle it
+                header.style.background = '';
             }
         });
     }, 16); // ~60fps
