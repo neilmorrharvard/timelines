@@ -31,6 +31,7 @@
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
         }
 
         .main-container::before {
@@ -196,6 +197,7 @@
        @media (max-width: 768px) {
             .main-container {
                 scroll-snap-type: x mandatory;
+                scroll-snap-stop: always;
             }
 
             .decade-column {
@@ -1096,6 +1098,28 @@ let scrollStartLeft = 0;
 // Simple touch handling - let CSS scroll-snap do the work
 // Only add minimal enhancement for better UX
 
+// Optimize touch responsiveness
+let touchStartTime = 0;
+let isScrolling = false;
+
+mainContainer.addEventListener('touchstart', (e) => {
+    touchStartTime = Date.now();
+    isScrolling = false;
+}, { passive: true });
+
+mainContainer.addEventListener('touchmove', (e) => {
+    if (!isScrolling && Date.now() - touchStartTime > 50) {
+        isScrolling = true;
+    }
+}, { passive: true });
+
+mainContainer.addEventListener('touchend', (e) => {
+    // Reset scrolling state after a brief delay
+    setTimeout(() => {
+        isScrolling = false;
+    }, 100);
+}, { passive: true });
+
 function updateNavigationArrows() {
     const scrollLeft = mainContainer.scrollLeft;
     const maxScroll = mainContainer.scrollWidth - mainContainer.clientWidth;
@@ -1158,27 +1182,24 @@ mainContainer.addEventListener('scroll', function() {
     
     updateNavigationArrows();
     updateScrollbar();
-});
+    updateStickyHeaders();
+}, { passive: true });
 
-// Add scroll detection for each decade column to enhance sticky headers
-document.querySelectorAll('.decade-column').forEach(column => {
-    const header = column.querySelector('.decade-header');
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                header.style.background = 'linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-start) 30%, transparent 100%)';
-            } else {
+// Optimized scroll detection for sticky headers
+let scrollTimeout;
+const updateStickyHeaders = () => {
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+        document.querySelectorAll('.decade-header').forEach(header => {
+            const rect = header.getBoundingClientRect();
+            if (rect.top <= 0) {
                 header.style.background = 'linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-start) 100%)';
+            } else {
+                header.style.background = 'linear-gradient(180deg, var(--bg-gradient-start) 0%, var(--bg-gradient-start) 30%, transparent 100%)';
             }
         });
-    }, {
-        root: mainContainer,
-        rootMargin: '-20px 0px 0px 0px',
-        threshold: 0
-    });
-    
-    observer.observe(header);
-});
+    }, 16); // ~60fps
+};
 
 // Scrollbar event listeners
 scrollbarThumb.addEventListener('mousedown', (e) => {
