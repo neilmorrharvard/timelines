@@ -202,7 +202,7 @@
        /* Mobile styles */
        @media (max-width: 768px) {
             .main-container {
-                scroll-snap-type: x proximity;
+                scroll-snap-type: x mandatory;
                 touch-action: pan-x pan-y;
             }
 
@@ -211,7 +211,7 @@
                 width: 80vw;
                 padding: 30px 15px 30px 30px;
                 scroll-snap-align: start;
-                scroll-snap-stop: normal;
+                scroll-snap-stop: always;
             }
 
             .decade-title {
@@ -248,7 +248,7 @@
                 width: 80vw;
                 padding: 20px 10px 20px 20px;
                 scroll-snap-align: start;
-                scroll-snap-stop: normal;
+                scroll-snap-stop: always;
             }
 
             .decade-title {
@@ -1168,8 +1168,8 @@ mainContainer.addEventListener('touchmove', (e) => {
                     }
                 } else if (deltaY > deltaX * 1.5 && deltaY > 30) {
                     isVerticalGesture = true;
-                    // Temporarily disable scroll-snap during vertical gestures
-                    mainContainer.style.scrollSnapType = 'none';
+                    // Temporarily disable horizontal scrolling during vertical gestures
+                    mainContainer.style.overflowX = 'hidden';
                     if (DEBUG_TOUCH) {
                         console.log('VERTICAL GESTURE DETECTED:', {
                             deltaX, deltaY, ratio: deltaY / deltaX
@@ -1273,14 +1273,14 @@ mainContainer.addEventListener('touchend', (e) => {
         });
     }
     
-    // Reset gesture tracking and restore scroll-snap
+    // Reset gesture tracking and restore horizontal scrolling
     isHorizontalGesture = false;
     isVerticalGesture = false;
     
-    // Restore scroll-snap after a short delay
+    // Restore horizontal scrolling after a short delay
     setTimeout(() => {
         if (window.innerWidth <= 768) {
-            mainContainer.style.scrollSnapType = 'x proximity';
+            mainContainer.style.overflowX = 'auto';
         }
     }, 100);
 }, { passive: true });
